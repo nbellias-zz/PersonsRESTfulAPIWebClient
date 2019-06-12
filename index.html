@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Fetch Usage</title>
+</head>
+
+<body onload="populateTableByPage()">
+    <div>
+        <h1>Welcome to my Fetch Usage site</h1>
+        <p>Fetch is an AJAX like API but more powerful</p>
+    </div>
+    <div>
+        <input type="text" name="fname" id="fname" placeholder="Enter your first name"><br>
+        <input type="text" name="lname" id="lname" placeholder="Enter your last name"><br>
+        <input type="file" name="photo" id="photo" onchange="previewPhoto()"><br>
+        <img src="" alt="Person photo" id="photopreview" width="100px">
+        <button onclick="saveInputs()">Submit</button>
+    </div>
+    <hr>
+    <div>
+        <p>Rows per page: <input type="number" name="recordsPerPage" id="recordsPerPage" min="2" max="10"
+                onchange="populateTableByPage();"></p>
+        <p>Page: <input type="text" name="pageNumber" id="pageNumber" size="2" style="border: none;text-align: right;"
+                disabled> of <input type="text" name="numberOfPages" id="numberOfPages" size="2"
+                style="border: none;text-align: right;" disabled></p>
+        <table id="personstable">
+            <thead>
+                <tr>
+                    <td>ID (Click to delete)</td>
+                    <td>First Name
+                        <input type="checkbox" name="sortByFirstNameAsc" id="sortByFirstNameAsc"
+                            onclick="sortByFirstNameAsc()"><label for="sortByFirstNameAsc">ASC</label>
+                        <input type="checkbox" name="sortByFirstNameDesc" id="sortByFirstNameDesc"
+                            onclick="sortByFirstNameDesc()"><label for="sortByFirstNameDesc">DESC</label>
+                    </td>
+                    <td>Last Name
+                        <input type="checkbox" name="sortByLastNameAsc" id="sortByLastNameAsc"
+                            onclick="sortByLastNameAsc()"><label for="sortByLastNameAsc">ASC</label>
+                        <input type="checkbox" name="sortByLastNameDesc" id="sortByLastNameDesc"
+                            onclick="sortByLastNameDesc()"><label for="sortByLastNameDesc">DESC</label>
+                    </td>
+                    <td>Photo</td>
+                    <td>Creation Date
+                        <input type="checkbox" name="sortByCreatedDateAsc" id="sortByCreatedDateAsc"
+                            onclick="sortByCreatedDateAsc()"><label for="sortByCreatedDateAsc">ASC</label>
+                        <input type="checkbox" name="sortByCreatedDateDesc" id="sortByCreatedDateDesc"
+                            onclick="sortByCreatedDateDesc()"><label for="sortByCreatedDateDesc">DESC</label>
+                    </td>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div>
+            <button id="first" onclick="goToFirstPage()">|<</button> <button id="previous"
+                    onclick="decreasePageNumber()">
+                    <<</button> <button id="next" onclick="increasePageNumber()">>></button>
+            <button id="last" onclick="goToLastPage()">>|</button>
+        </div>
+    </div>
+    <script>
+
+        function saveInputs() {
+            var firstname = document.getElementById("fname");
+            var lastname = document.getElementById("lname");
+            var photoimage = document.getElementById("photopreview");
+
+            var person = {
+                fname: firstname.value,
+                lname: lastname.value,
+                photo: photoimage.src,
+                Created_date: new Date()
+            }
+
+            const url = 'http://localhost:3000/persons';
+            fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify(person), })
+                .then((response) => {
+                    console.log("Response = " + response);
+                    location.reload();
+                })
+                .then(function (person) {
+                    console.log("Data = " + person);
+                })
+                .catch(function (error) {
+                    console.log(JSON.stringify(error));
+                });
+        }
+
+        function deleteSelected(personid) {
+            var reply = confirm("Are you sure you want to delete the selected person?");
+            if (reply) {
+                var url = 'http://localhost:3000/persons/' + personid;
+                fetch(url, { method: 'DELETE' })
+                    .then((response) => {
+                        location.reload();
+                    })
+                    .then(function (data) {
+                        console.log("Data = " + data);
+                    })
+                    .catch(function (error) {
+                        console.log(JSON.stringify(error));
+                    });
+            }
+        }
+
+        function updateSelected(personid) {
+            var newfirstname = document.getElementById("fname" + personid);
+            var newlastname = document.getElementById("lname" + personid);
+            var url = 'http://localhost:3000/persons/' + personid;
+
+            // console.log(newfirstname.value);
+            // console.log(newlastname.value);
+
+            fetch(url)
+                .then(response => response.json())
+                .then(function (data) {
+                    // console.log("Data = " + data);
+                    if (data) {
+                        let person = {
+                            _id: data._id,
+                            fname: newfirstname.value,
+                            lname: newlastname.value,
+                            photo: data.photo,
+                            Created_date: data.Created_date
+                        }
+                        fetch(url, { method: 'PUT', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify(person), })
+                            .then((response) => {
+                                console.log("Response = " + response);
+                                location.reload();
+                            })
+                            .then(function (person) {
+                                console.log("Data = " + person);
+                            })
+                            .catch(function (error) {
+                                console.log(JSON.stringify(error));
+                            });
+                    }
+                })
+                .catch(function (error) {
+                    console.log("Error = " + JSON.stringify(error));
+                });
+        }
+
+        function populateTableByPage() {
+            var myTable = document.getElementById("personstable").getElementsByTagName('tbody')[0];
+            var limit = document.getElementById("recordsPerPage").value;
+            var page = document.getElementById("pageNumber").value;
+            var sortByFirstNameAsc = document.getElementById("sortByFirstNameAsc").checked;
+            var sortByFirstNameDesc = document.getElementById("sortByFirstNameDesc").checked;
+            var sortByLastNameAsc = document.getElementById("sortByLastNameAsc").checked;
+            var sortByLastNameDesc = document.getElementById("sortByLastNameDesc").checked;
+            var sortByCreatedDateAsc = document.getElementById("sortByCreatedDateAsc").checked;
+            var sortByCreatedDateDesc = document.getElementById("sortByCreatedDateDesc").checked;
+            var sortBy = "";
+            
+            //console.log(limit + ", " + page + ", " + sortByFirstName + ", " + sortByLastName + ", --> " + JSON.stringify(sortby));
+
+            if (!limit) {
+                limit = 2;
+                document.getElementById("recordsPerPage").value = 2;
+            }
+            if (!page) {
+                page = 1;
+                document.getElementById("pageNumber").value = 1;
+            }
+            myTable.innerHTML = "";
+
+            const url = "http://localhost:3000/personsbypage/" + limit + "/" + page;
+
+            if (sortByFirstNameAsc) {
+                sortby = "fname: 1, ";
+            }
+
+            if (sortByFirstNameDesc) {
+                sortby = "fname: -1, ";
+            }
+
+            if (sortByLastNameAsc) {
+                sortby = "lname: 1, ";
+            }
+
+            if (sortByLastNameDesc) {
+                sortby = "lname: -1, ";
+            }
+
+            if(sortByCreatedDateAsc){
+                sortby = "Created_date: 1, ";
+            }
+
+            if(sortByCreatedDateDesc){
+                sortby = "Created_date: -1, ";
+            }
+
+            console.log(JSON.parse("{" + sortBy + "}"));
+            fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', }, redirect: 'manual', body: JSON.stringify(JSON.parse("{" + sortBy + "}")), })
+                .then(response => response.json())
+                .then(function (result) {
+                    var data = result.itemsList;
+                    //console.log(result.paginator.hasPrevPage + " - " + result.paginator.hasNextPage);
+                    document.getElementById("numberOfPages").value = result.paginator.pageCount;
+                    document.getElementById("recordsPerPage").max = result.paginator.itemCount;
+                    if (result.paginator.hasPrevPage) {
+                        document.getElementById("previous").disabled = false;
+                    } else {
+                        document.getElementById("previous").disabled = true;
+                    }
+                    if (result.paginator.hasNextPage) {
+                        document.getElementById("next").disabled = false;
+                    } else {
+                        document.getElementById("next").disabled = true;
+                    }
+                    if (result.paginator.pageCount === document.getElementById("pageNumber").value) {
+                        document.getElementById("pageNumber").value = 1;
+                    }
+
+                    for (var i = 0; i < data.length; i++) {
+                        var newRow = myTable.insertRow(myTable.rows.length);
+                        newRow.innerHTML = "<td onclick='deleteSelected(\""
+                            + data[i]._id + "\")'><mark>"
+                            + data[i]._id + "</mark></td><td><input type='text' value='"
+                            + data[i].fname + "' id='fname" + data[i]._id + "' onchange='updateSelected(\"" + data[i]._id + "\")' style='border: none;'/></td><td><input type='text' value='"
+                            + data[i].lname + "' id='lname" + data[i]._id + "' onchange='updateSelected(\"" + data[i]._id + "\")' style='border: none;'/></td><td><img src='"
+                            + data[i].photo + "' alt='photo' height='50px'/></td><td>"
+                            + data[i].Created_date + "</td>";
+                    }
+                })
+                .catch(function (error) {
+                    console.log(JSON.stringify(error));
+                });
+        }
+
+        function previewPhoto() {
+            var preview = document.getElementById("photopreview");
+            var file = document.getElementById("photo").files[0];
+            var reader = new FileReader();
+            // if (file.size > 5000000) {
+            //     alert("Cannot save this file. Its size exceeds 5MB");
+            //     file = null;
+            // } else {
+            reader.onloadend = function () {
+                preview.src = reader.result;
+            }
+
+            if (file) {
+                reader.readAsDataURL(file);
+            } else {
+                preview.src = "";
+            }
+            //}
+        }
+
+        function increasePageNumber() {
+            ++document.getElementById("pageNumber").value;
+            populateTableByPage();
+        }
+
+        function decreasePageNumber() {
+            --document.getElementById("pageNumber").value;
+            populateTableByPage();
+        }
+
+        function goToFirstPage() {
+            document.getElementById("pageNumber").value = 1;
+            populateTableByPage();
+        }
+
+        function goToLastPage() {
+            document.getElementById("pageNumber").value = document.getElementById("numberOfPages").value;
+            populateTableByPage();
+        }
+
+        function sortByFirstNameAsc() {
+            populateTableByPage();
+        }
+
+        function sortByFirstNameDesc() {
+            populateTableByPage();
+        }
+
+        function sortByLastNameAsc() {
+            populateTableByPage();
+        }
+
+        function sortByLastNameDesc() {
+            populateTableByPage();
+        }
+
+        function sortByCreatedDateAsc() {
+            populateTableByPage();
+        }
+
+        function sortByCreatedDateDesc() {
+            populateTableByPage();
+        }
+
+    </script>
+</body>
+
+</html>
